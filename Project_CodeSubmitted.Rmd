@@ -1,0 +1,171 @@
+---
+title: "Project"
+output: html_document
+---
+
+In this project, we want to predict whether an individual is performing barbell lifts properly or not.
+
+Load the packages ggplot2 and caret and read both the training and testing sets. Get a summary of the data
+```{r read_data, echo = TRUE}
+library(ggplot2)
+library(caret)
+training_data <- read.table("pml-training.csv", header = TRUE, sep = ",")
+testing_data <- read.table("pml-testing.csv", header = TRUE, sep = ",")
+table(training_data$classe)
+```
+The summary of the training data indicates that 6 individuals completed one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions:
+- Class A: Exactly according to the specification
+- Class B: Throwing the elbows to the front
+- Class C: Lifting the dumbbell only halfway
+- Class D: Lowering the dumbbell only halfway
+- Class E: Throwing the hips to the front. 
+The recording of such measurements were stored in a data frame consisting of 19622 observations and for each observation, 160  pieces of information were recorded, some of them missing or recorded as NA. Define a new data frame retaining columns that are not mostly NA or have meaningful values. Information about time stamp and window have been eliminated as they do not contribute to model development
+```{r relevant data, echo = TRUE}
+training_data_0 <- cbind(training_data$roll_belt, training_data$pitch_belt, training_data$yaw_belt, training_data$total_accel_belt)
+testing_data_0 <- cbind(testing_data$roll_belt, testing_data$pitch_belt, testing_data$yaw_belt, testing_data$total_accel_belt)
+training_data_0 <- cbind(training_data_0, training_data$gyros_belt_x, training_data$gyros_belt_y, training_data$gyros_belt_z, training_data$accel_belt_x, training_data$accel_belt_y, training_data$accel_belt_z, training_data$magnet_belt_x, training_data$magnet_belt_y, training_data$magnet_belt_z)
+testing_data_0 <- cbind(testing_data_0, testing_data$gyros_belt_x, testing_data$gyros_belt_y, testing_data$gyros_belt_z, testing_data$accel_belt_x, testing_data$accel_belt_y, testing_data$accel_belt_z, testing_data$magnet_belt_x, testing_data$magnet_belt_y, testing_data$magnet_belt_z)
+training_data_0 <- cbind(training_data_0,training_data$roll_arm, training_data$pitch_arm, training_data$yaw_arm, training_data$total_accel_arm)
+testing_data_0 <- cbind(testing_data_0, testing_data$roll_arm, testing_data$pitch_arm, testing_data$yaw_arm, testing_data$total_accel_arm)
+training_data_0 <- cbind(training_data_0, training_data$gyros_arm_x, training_data$gyros_arm_y, training_data$gyros_arm_z, training_data$accel_arm_x, training_data$accel_arm_y, training_data$accel_arm_z, training_data$magnet_arm_x, training_data$magnet_arm_y, training_data$magnet_arm_z)
+testing_data_0 <- cbind(testing_data_0, testing_data$gyros_arm_x, testing_data$gyros_arm_y, testing_data$gyros_arm_z, testing_data$accel_arm_x, testing_data$accel_arm_y, testing_data$accel_arm_z, testing_data$magnet_arm_x, testing_data$magnet_arm_y, testing_data$magnet_arm_z)
+training_data_0 <- cbind(training_data_0,training_data$roll_dumbbell, training_data$pitch_dumbbell, training_data$yaw_dumbbell, training_data$total_accel_dumbbell)
+testing_data_0 <- cbind(testing_data_0, testing_data$roll_dumbbell, testing_data$pitch_dumbbell, testing_data$yaw_dumbbell, testing_data$total_accel_dumbbell)
+training_data_0 <- cbind(training_data_0, training_data$gyros_dumbbell_x, training_data$gyros_dumbbell_y, training_data$gyros_dumbbell_z, training_data$accel_dumbbell_x, training_data$accel_dumbbell_y, training_data$accel_dumbbell_z, training_data$magnet_dumbbell_x, training_data$magnet_dumbbell_y, training_data$magnet_dumbbell_z)
+testing_data_0 <- cbind(testing_data_0, testing_data$gyros_dumbbell_x, testing_data$gyros_dumbbell_y, testing_data$gyros_dumbbell_z, testing_data$accel_dumbbell_x, testing_data$accel_dumbbell_y, testing_data$accel_dumbbell_z, testing_data$magnet_dumbbell_x, testing_data$magnet_dumbbell_y, testing_data$magnet_dumbbell_z)
+training_data_0 <- cbind(training_data_0,training_data$roll_forearm, training_data$pitch_forearm, training_data$yaw_forearm, training_data$total_accel_forearm)
+testing_data_0 <- cbind(testing_data_0, testing_data$roll_forearm, testing_data$pitch_forearm, testing_data$yaw_forearm, testing_data$total_accel_forearm)
+training_data_0 <- cbind(training_data_0, training_data$gyros_forearm_x, training_data$gyros_forearm_y, training_data$gyros_forearm_z, training_data$accel_forearm_x, training_data$accel_forearm_y, training_data$accel_forearm_z, training_data$magnet_forearm_x, training_data$magnet_forearm_y, training_data$magnet_forearm_z)
+testing_data_0 <- cbind(testing_data_0, testing_data$gyros_forearm_x, testing_data$gyros_forearm_y, testing_data$gyros_forearm_z, testing_data$accel_forearm_x, testing_data$accel_forearm_y, testing_data$accel_forearm_z, testing_data$magnet_forearm_x, testing_data$magnet_forearm_y, testing_data$magnet_forearm_z)
+vector_training_names <- c("roll_belt", "pitch_belt", "yaw_belt", "total_accel_belt", "gyros_belt_x", "gyros_belt_y", "gyros_belt_z", "accel_belt_x", "accel_belt_y", "accel_belt_z", "magnet_belt_x", "magnet_belt_y", "magnet_belt_z", "roll_arm", "pitch_arm", "yaw_arm", "total_accel_arm", "gyros_arm_x", "gyros_arm_y", "gyros_arm_z", "accel_arm_x", "accel_arm_y", "accel_arm_z", "magnet_arm_x", "magnet_arm_y", "magnet_arm_z", "roll_dumbbell", "pitch_dumbbell", "yaw_dumbbell", "total_accel_dumbbell", "gyros_dumbbell_x", "gyros_dumbbell_y", "gyros_dumbbell_z", "accel_dumbbell_x", "accel_dumbbell_y", "accel_dumbbell_z", "magnet_dumbbell_x", "magnet_dumbbell_y", "magnet_dumbbell_z", "roll_forearm", "pitch_forearm", "yaw_forearm", "total_accel_forearm", "gyros_forearm_x", "gyros_forearm_y", "gyros_forearm_z", "accel_forearm_x", "accel_forearm_y", "accel_forearm_z", "magnet_forearm_x", "magnet_forearm_y", "magnet_forearm_z")
+colnames(training_data_0) <- vector_training_names
+colnames(testing_data_0) <- vector_training_names
+```
+The transformed training data frame has now 19622 rows and 52 columns, the recordings being the roll, pitch, yaw, total acceleration of belt, arm, dumbbell, and forearm. It also records gyros, accelaration, magnet in each of the three dimensions for the belt, arm, dumbbell, and forearm, as well as the class. 
+
+We first graph the scatter plot matrix of the roll, pitch, yaw, and total acceleration for the belt. 
+```{r ScatterPlotMatrix_belt, echo = TRUE}
+featurePlot(x = training_data_0[, c("roll_belt", "pitch_belt", "yaw_belt", "total_accel_belt")], y = as.factor(training_data$classe), plot="pairs")
+```
+
+From the Scatter Plot Matrix, we see that the belt is not very effective at identifying whether the activity was properly completed since the ScatterPlot Matrix does not separate the different classes.
+Plotting similar Scatter Plot Matrices involving only the arm, dumbbell, or forearm do not provide better information on whether the activity was properly conducted. Therefore, all the different types of measurements should be incorporated in the model.
+
+Using the caret package and the train function we develop a classification random forest model with cross-validation 10 fold, no preprocessing, using as data the data frame training_data_0 and the field training_data$classe indicating how the individual performed the exercise. The data frame training_data_0 has been derived by eliminating from the provided training data the mostly NA fields.
+```{r RandomForestModel, echo = TRUE}
+rfrepeatedCVModel <- train(training_data_0, as.factor(training_data$classe), method = "rf", scale = FALSE, trControl = trainControl(method = "repeatedcv", number = 10))
+rfrepeatedCVModelfinal <- rfrepeatedCVModel$finalModel
+print(rfrepeatedCVModelfinal)
+plot(rfrepeatedCVModelfinal, main = "Error Rate Random Forest Model")
+```
+
+From the graph of the error rate, we see that once you have 200 trees, the error rate does not improve significantly
+```{r RandomForestPlots, echo = TRUE}
+varImpPlot(rfrepeatedCVModelfinal, sort = TRUE, n.var = 10, main = "", scale = TRUE)
+importance(rfrepeatedCVModelfinal, type=2)
+```
+
+The Mean Decrease Gini goes from nearly 760 to 120, and in descending order, the five largest values are for roll_belt, pitch_forearm, yaw_belt, pitch_belt, and magnet_dumbbell_z, those being larger than 500.
+```{r RandomForestPlotMargin, echo = TRUE}
+plot(margin(rfrepeatedCVModelfinal))
+```
+
+The plot of margin confirms a very low error rate since very few points out of the training data have a negative margin.
+```{r ConfusionMatrix, echo = TRUE}
+rfrepeatedCVModelpred_training_data_0 <- predict(rfrepeatedCVModelfinal, type="response")
+confusionMatrix(rfrepeatedCVModelpred_training_data_0, as.factor(training_data$classe))
+```
+
+The developed model has a relative low error rate on the training data, less than half a percent, and a Kappa value of more than .99; both the specificity and sentivity are more than 98%; the activity exactly according to the specifics has the lowest error rate, highest sensitivity while lowering the dumbbell only halfway has highest error rate and lowest sensitivity. The P-value of accuracy greater than No Information rate is less than 2e-16. The balance accuracy is greater than 99.3% for all the outcomes. The confusion matrix is a nearly banded matrix which indicates that, even though the predictions are not 100% accurate, the discrepancies are not major.
+```{r PredictedValues, echo = TRUE}
+exerciseoutcome <- rfrepeatedCVModelpred_training_data_0
+qplot(seq_along(rfrepeatedCVModelpred_training_data_0), rfrepeatedCVModelpred_training_data_0, colour = exerciseoutcome, xlab = "Index", ylab = "Activity")
+```
+
+The above plot provides the predicted values for the developed model using the training set. Only a few points differs when comparing to the original labels.
+```{r RandomForestPredict, echo = TRUE}
+rfrepeatedCVModelpred_testing_data_case1 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[1,], type="response")
+rfrepeatedCVModelpred_testing_data_case2 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[2,], type="response")
+rfrepeatedCVModelpred_testing_data_case3 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[3,], type="response")
+rfrepeatedCVModelpred_testing_data_case4 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[4,], type="response")
+rfrepeatedCVModelpred_testing_data_case5 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[5,], type="response")
+rfrepeatedCVModelpred_testing_data_case6 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[6,], type="response")
+rfrepeatedCVModelpred_testing_data_case7 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[7,], type="response")
+rfrepeatedCVModelpred_testing_data_case8 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[8,], type="response")
+rfrepeatedCVModelpred_testing_data_case9 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[9,], type="response")
+rfrepeatedCVModelpred_testing_data_case10 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[10,], type="response")
+rfrepeatedCVModelpred_testing_data_case11 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[11,], type="response")
+rfrepeatedCVModelpred_testing_data_case12 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[12,], type="response")
+rfrepeatedCVModelpred_testing_data_case13 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[13,], type="response")
+rfrepeatedCVModelpred_testing_data_case14 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[14,], type="response")
+rfrepeatedCVModelpred_testing_data_case15 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[15,], type="response")
+rfrepeatedCVModelpred_testing_data_case16 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[16,], type="response")
+rfrepeatedCVModelpred_testing_data_case17 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[17,], type="response")
+rfrepeatedCVModelpred_testing_data_case18 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[18,], type="response")
+rfrepeatedCVModelpred_testing_data_case19 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[19,], type="response")
+rfrepeatedCVModelpred_testing_data_case20 <- predict(rfrepeatedCVModelfinal, newdata = testing_data_0[20,], type="response")
+print(rfrepeatedCVModelpred_testing_data_case1)
+print(rfrepeatedCVModelpred_testing_data_case2)
+print(rfrepeatedCVModelpred_testing_data_case3)
+print(rfrepeatedCVModelpred_testing_data_case4)
+print(rfrepeatedCVModelpred_testing_data_case5)
+print(rfrepeatedCVModelpred_testing_data_case6)
+print(rfrepeatedCVModelpred_testing_data_case7)
+print(rfrepeatedCVModelpred_testing_data_case8)
+print(rfrepeatedCVModelpred_testing_data_case9)
+print(rfrepeatedCVModelpred_testing_data_case10)
+print(rfrepeatedCVModelpred_testing_data_case11)
+print(rfrepeatedCVModelpred_testing_data_case12)
+print(rfrepeatedCVModelpred_testing_data_case13)
+print(rfrepeatedCVModelpred_testing_data_case14)
+print(rfrepeatedCVModelpred_testing_data_case15)
+print(rfrepeatedCVModelpred_testing_data_case16)
+print(rfrepeatedCVModelpred_testing_data_case17)
+print(rfrepeatedCVModelpred_testing_data_case18)
+print(rfrepeatedCVModelpred_testing_data_case19)
+print(rfrepeatedCVModelpred_testing_data_case20)
+```
+Running the model to predict the way the Unilateral Dumbbell Biceps Curl was executed, we find:
+
+* For problem id 1, the participant threw his/her elbows to the front during Unilateral Dumbbell Biceps Curl; 
+
+* for problem id 2, the participant executed Unilateral Dumbbell Biceps Curl exactly according to the specification; 
+
+* for problem id 3, the participant threw his/her elbows to the front during Unilateral Dumbbell Biceps Curl; 
+
+* for problem id 4, the participant executed Unilateral Dumbbell Biceps Curl exactly according to the specification; 
+
+* for problem id 5, the participant executed Unilateral Dumbbell Biceps Curl exactly according to the specification; 
+
+* for problem id 6, the participant threw his/her hips to the front during Unilateral Dumbbell Biceps Curl; 
+
+* for problem id 7, the participant lowered the dumbbell only halfway during Unilateral Dumbbell Biceps Curl; 
+
+* for problem id 8, the participant threw his/her elbows to the front during Unilateral Dumbbell Biceps Curl; 
+
+* for problem id 9, the participant executed Unilateral Dumbbell Biceps Curl exactly according to the specification; 
+
+* for problem id 10, the participant executed Unilateral Dumbbell Biceps Curl exactly according to the specification; 
+
+* for problem id 11, the participant lowered the dumbbell only halfway during Unilateral Dumbbell Biceps Curl; 
+
+* for problem id 12, the participant lifted the dumbbell only halfway during Unilateral Dumbbell Biceps Curl; 
+
+* for problem id 13, the participant lowered the dumbbell only halfway during Unilateral Dumbbell Biceps Curl; 
+
+* for problem id 14, the participant executed Unilateral Dumbbell Biceps Curl exactly according to the specification; 
+
+* for problem id 15, the participant threw his/her hips to the front during Unilateral Dumbbell Biceps Curl; 
+
+* for problem id 16, the participant threw his/her hips to the front during Unilateral Dumbbell Biceps Curl; 
+
+* for problem id 17, the participant executed Unilateral Dumbbell Biceps Curl exactly according to the specification; 
+
+* for problem id 18, the participant threw his/her elbows to the front during Unilateral Dumbbell Biceps Curl; 
+
+* for problem id 19, the participant threw his/her elbows to the front during Unilateral Dumbbell Biceps Curl; 
+
+* and for problem id 20, the participant threw his/her elbows to the front during Unilateral Dumbbell Biceps Curl.
+
+
+
